@@ -1,0 +1,315 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+}
+
+.container {
+    width: 90%;
+    max-width: 500px;
+    padding: 20px;
+}
+
+.setup-screen, .practice-screen {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.hidden {
+    display: none !important;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 28px;
+    font-weight: 300;
+}
+
+.protocol-select {
+    margin-bottom: 25px;
+}
+
+.protocol-option {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid transparent;
+}
+
+.protocol-option:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.protocol-option.active {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.protocol-name {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.protocol-desc {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.rounds-control {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+}
+
+.rounds-label {
+    display: block;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.rounds-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.rounds-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.rounds-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.rounds-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: scale(1);
+}
+
+.rounds-value {
+    font-size: 32px;
+    font-weight: 500;
+    min-width: 60px;
+    text-align: center;
+}
+
+.sound-settings {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+}
+
+.sound-title {
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.checkbox-group {
+    margin-bottom: 15px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.checkbox-label input {
+    margin-right: 10px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.volume-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+}
+
+.start-btn {
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.start-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* 练习界面 */
+.practice-screen {
+    text-align: center;
+}
+
+.progress-info {
+    margin-bottom: 20px;
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+.breath-circle-container {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    margin: 40px auto;
+    overflow: hidden;
+}
+
+.breath-circle {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: all 1s ease-in-out;
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+}
+
+.breath-circle.inhale {
+    width: 280px;
+    height: 280px;
+    background: rgba(100, 200, 255, 0.3);
+    box-shadow: 0 0 60px rgba(100, 200, 255, 0.5);
+}
+
+.breath-circle.hold {
+    width: 280px;
+    height: 280px;
+    background: rgba(200, 100, 255, 0.3);
+    box-shadow: 0 0 60px rgba(200, 100, 255, 0.5);
+}
+
+.breath-circle.exhale {
+    width: 200px;
+    height: 200px;
+    background: rgba(100, 255, 150, 0.3);
+    box-shadow: 0 0 60px rgba(100, 255, 150, 0.5);
+}
+
+.phase-text {
+    font-size: 36px;
+    font-weight: 300;
+    margin-bottom: 10px;
+}
+
+.countdown {
+    font-size: 64px;
+    font-weight: 500;
+}
+
+.step-info {
+    margin-bottom: 30px;
+    font-size: 18px;
+}
+
+.step-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.cycle-info {
+    opacity: 0.8;
+    font-size: 16px;
+}
+
+.controls {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.control-btn {
+    padding: 12px 30px;
+    font-size: 16px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.completion-screen {
+    text-align: center;
+    padding: 40px 30px;
+}
+
+.completion-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+}
+
+.completion-text {
+    font-size: 24px;
+    margin-bottom: 30px;
+}
