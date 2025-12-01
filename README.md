@@ -174,8 +174,7 @@ npm install -g wrangler
 wrangler login
 
 # 部署项目
-wrangler pages deploy . --project-name=breath-meditation
-```
+wrangler pages deploy . --project-name=breath
 
 ## 浏览器兼容性
 
