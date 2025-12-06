@@ -32,12 +32,21 @@ let state = {
     isPaused: false,
     enableTick: true,
     enableVoice: true,
+    enableBackgroundMusic: true,
+    backgroundVolume: 0.5,
     volume: 0.8
 };
+
+// 内置的轻音乐（1s 三和弦），避免提交二进制文件
+const EMBEDDED_BACKGROUND_WAV =
+    'data:audio/wav;base64,UklGRmisAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YUSsAAAAAM0BlQNUBQMHoAglCo4LUAt0D6wQzBC4EkMQlxK+E80S6BKsEd0QLBIkExIQzBPwERQV8BCgEmwP2BPQEAwXhBbEFqQWlBR8FSwWABf4FBgX8BQwF/gTgBE0E0wQXBDkERwTqBFQE+wQQBGwE2wP3AmkBeQEdAfMCkQK7AmMC+gJnAvgCWgL2AnQC1wJgAuYCbQKxAnYCxgJ8ArkCbgLOApACzwKTAu4CgQKAAlkB5gD9//T/uwCbAUMCrwBRAqoAPwEMAI0B7wBTAlcAnwG8ACQBNQD2AH0BlgAMAUUAjQEFAOkBzAD7ACIB7wDrAfIADgH7APMBBQAGAeYAuQH0AMAB/wABAd0ABgEBAAMAAQAAAP//AQACAP///wAA/wEA/v//AQQAAAH6AAAB+wABAfgAAAH8AAAB+QAAAfsAAAAFAAAA7wAAAPoAAQEAAP//AAACAAAAAAAAAP7//wAAAP//AAAB////AAEAAP//AP//AQH//wABAAEAAAMAAQABAAAAAgABAAEAAAABAAEAAAAAAAAAAAAAAAAA';
 
 let timer = null;
 let audioContext = null;
 let wakeLock = null; // 屏幕唤醒锁
+let backgroundBuffer = null;
+let backgroundSource = null;
+let backgroundGainNode = null;
 
 // 初始化
 function init() {
@@ -87,6 +96,13 @@ function init() {
         document.getElementById('volumeValue').textContent = e.target.value + '%';
     });
 
+    const bgVolumeSlider = document.getElementById('bgVolumeSlider');
+    bgVolumeSlider.addEventListener('input', (e) => {
+        state.backgroundVolume = e.target.value / 100;
+        document.getElementById('bgVolumeValue').textContent = e.target.value + '%';
+        updateBackgroundVolume();
+    });
+
     // 声音设置
     document.getElementById('tickSound').addEventListener('change', (e) => {
         state.enableTick = e.target.checked;
@@ -94,6 +110,15 @@ function init() {
 
     document.getElementById('voiceGuide').addEventListener('change', (e) => {
         state.enableVoice = e.target.checked;
+    });
+
+    document.getElementById('backgroundMusicToggle').addEventListener('change', (e) => {
+        state.enableBackgroundMusic = e.target.checked;
+        if (state.enableBackgroundMusic) {
+            startBackgroundMusic();
+        } else {
+            stopBackgroundMusic();
+        }
     });
 
     // 开始按钮
@@ -159,7 +184,7 @@ function releaseWakeLock() {
 }
 
 // 开始练习
-function startPractice() {
+async function startPractice() {
     // 请求屏幕保持唤醒
     requestWakeLock();
 
@@ -170,8 +195,10 @@ function startPractice() {
 
     // 恢复音频上下文（处理移动端自动播放限制）
     if (audioContext.state === 'suspended') {
-        audioContext.resume();
+        await audioContext.resume();
     }
+
+    await startBackgroundMusic();
 
     // 重置状态
     state.currentRound = 1;
@@ -394,6 +421,7 @@ function togglePause() {
 function stopPractice() {
     if (timer) clearInterval(timer);
     releaseWakeLock(); // 释放屏幕唤醒锁
+    stopBackgroundMusic();
     document.getElementById('practiceScreen').classList.add('hidden');
     document.getElementById('setupScreen').classList.remove('hidden');
 }
@@ -402,6 +430,7 @@ function stopPractice() {
 function completePractice() {
     if (timer) clearInterval(timer);
     releaseWakeLock(); // 释放屏幕唤醒锁
+    stopBackgroundMusic();
     document.getElementById('practiceScreen').classList.add('hidden');
     document.getElementById('completionScreen').classList.remove('hidden');
     if (state.enableVoice) speak('练习完成');
@@ -472,6 +501,77 @@ function playCompletionSound() {
     }
 }
 
+// 背景音乐加载
+async function loadBackgroundMusic() {
+    if (!audioContext) return;
+    if (backgroundBuffer) return backgroundBuffer;
+
+    const response = await fetch(EMBEDDED_BACKGROUND_WAV);
+    const arrayBuffer = await response.arrayBuffer();
+    backgroundBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    return backgroundBuffer;
+}
+
+// 开始播放背景音乐
+async function startBackgroundMusic() {
+    if (!state.enableBackgroundMusic) return;
+    if (!audioContext) return;
+
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
+
+    if (!backgroundGainNode) {
+        backgroundGainNode = audioContext.createGain();
+        backgroundGainNode.gain.value = state.backgroundVolume;
+        backgroundGainNode.connect(audioContext.destination);
+    }
+
+    await loadBackgroundMusic();
+
+    stopBackgroundMusic();
+    backgroundSource = audioContext.createBufferSource();
+    backgroundSource.buffer = backgroundBuffer;
+    backgroundSource.loop = true;
+    backgroundSource.connect(backgroundGainNode);
+    backgroundSource.start(0);
+}
+
+// 停止背景音乐
+function stopBackgroundMusic() {
+    if (backgroundSource) {
+        try {
+            backgroundSource.stop();
+        } catch (e) {}
+        backgroundSource.disconnect();
+        backgroundSource = null;
+    }
+}
+
+// 更新背景音乐音量
+function updateBackgroundVolume() {
+    if (backgroundGainNode && audioContext) {
+        const now = audioContext.currentTime;
+        backgroundGainNode.gain.cancelScheduledValues(now);
+        backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume, now, 0.05);
+    }
+}
+
+// 语音播报时的背景音乐 ducking
+function applyBackgroundDucking() {
+    if (!backgroundGainNode || !audioContext) return;
+    const now = audioContext.currentTime;
+    backgroundGainNode.gain.cancelScheduledValues(now);
+    backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume * 0.4, now, 0.05);
+}
+
+function restoreBackgroundVolume() {
+    if (!backgroundGainNode || !audioContext) return;
+    const now = audioContext.currentTime;
+    backgroundGainNode.gain.cancelScheduledValues(now);
+    backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume, now, 0.1);
+}
+
 // 语音合成
 function speak(text) {
     if (!state.enableVoice) return;
@@ -490,6 +590,12 @@ function speak(text) {
     utterance.volume = state.volume;
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
+
+    if (audioContext && backgroundGainNode && state.enableBackgroundMusic) {
+        applyBackgroundDucking();
+        utterance.addEventListener('end', restoreBackgroundVolume);
+        utterance.addEventListener('error', restoreBackgroundVolume);
+    }
 
     // 等待一小段时间再播放，确保音频系统就绪
     setTimeout(() => {
