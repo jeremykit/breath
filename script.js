@@ -58,11 +58,10 @@ let audioNodes = {
     voiceGain: null,
     musicSource: null
 };
+let backgroundAudioElement = null;
 const PRE_RECORDED_SRC = 'data:audio/wav;base64,UklGRpgiAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YXQiAAAAAMAEZgnXDfkRtBX1GKcb0RmxGs4dqyDsOvc9njs+QE6hQVQk4ZR1FvfS8FnUTggS3dF9sXfYdxyOKmwo1Kc6dKn4Xn5s7U7Jr3W7iF0HB3gH4pHc4SpQVvBH7oRJCHJp4htKlfGcjyXzI5h0pXe4dQIRV7h1It01njGZKoVdRCos5t1JZcTD+ZRFKc4Q5CEQH';
 let wakeLock = null; // 屏幕唤醒锁
-let backgroundBuffer = null;
-let backgroundSource = null;
-let backgroundGainNode = null;
+const BACKGROUND_MUSIC_URL = 'https://mp3.ours24.dpdns.org/praise/%E9%BB%98%E6%83%B3/Small%20Bartizan_Piano%20Cover.m4a';
 
 // 初始化
 function init() {
@@ -110,15 +109,6 @@ function init() {
     // 声音设置
     bindAudioSettingsControls();
     syncAudioControls();
-
-    document.getElementById('backgroundMusicToggle').addEventListener('change', (e) => {
-        state.enableBackgroundMusic = e.target.checked;
-        if (state.enableBackgroundMusic) {
-            startBackgroundMusic();
-        } else {
-            stopBackgroundMusic();
-        }
-    });
 
     // 开始按钮
     document.getElementById('startBtn').addEventListener('click', startPractice);
@@ -260,54 +250,58 @@ function ensureAudioContext() {
 }
 
 function applyAudioSettings() {
-    if (!audioContext || !audioNodes.masterGain) return;
-    const now = audioContext.currentTime;
+    if (audioContext && audioNodes.masterGain) {
+        const now = audioContext.currentTime;
 
-    audioNodes.tickGain.gain.setValueAtTime(
-        audioSettings.enableTick ? audioSettings.tickVolume : 0,
-        now
-    );
-    audioNodes.completionGain.gain.setValueAtTime(
-        audioSettings.enableTick ? audioSettings.completionVolume : 0,
-        now
-    );
-    audioNodes.voiceGain.gain.setValueAtTime(
-        audioSettings.enableVoice ? audioSettings.voiceVolume : 0,
-        now
-    );
-    audioNodes.musicGain.gain.setValueAtTime(
-        audioSettings.enableMusic ? audioSettings.musicVolume : 0,
-        now
-    );
-}
-
-function startBackgroundMusic() {
-    if (!audioSettings.enableMusic) return;
-    ensureAudioContext();
-
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
+        audioNodes.tickGain.gain.setValueAtTime(
+            audioSettings.enableTick ? audioSettings.tickVolume : 0,
+            now
+        );
+        audioNodes.completionGain.gain.setValueAtTime(
+            audioSettings.enableTick ? audioSettings.completionVolume : 0,
+            now
+        );
+        audioNodes.voiceGain.gain.setValueAtTime(
+            audioSettings.enableVoice ? audioSettings.voiceVolume : 0,
+            now
+        );
+        audioNodes.musicGain.gain.setValueAtTime(
+            audioSettings.enableMusic ? audioSettings.musicVolume : 0,
+            now
+        );
     }
 
-    stopBackgroundMusic();
+    if (backgroundAudioElement) {
+        backgroundAudioElement.volume = audioSettings.enableMusic ? audioSettings.musicVolume : 0;
+    }
+}
 
-    const oscillator = audioContext.createOscillator();
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
-    oscillator.connect(audioNodes.musicGain);
-    oscillator.start();
-    audioNodes.musicSource = oscillator;
+async function startBackgroundMusic() {
+    if (!audioSettings.enableMusic) return;
+    if (!backgroundAudioElement) {
+        backgroundAudioElement = new Audio(BACKGROUND_MUSIC_URL);
+        backgroundAudioElement.loop = true;
+        backgroundAudioElement.preload = 'auto';
+        backgroundAudioElement.addEventListener('error', () => {
+            console.warn('远程音乐播放失败，使用内置音频');
+            backgroundAudioElement.src = EMBEDDED_BACKGROUND_WAV;
+            backgroundAudioElement.load();
+            backgroundAudioElement.play().catch(err => console.warn('内置背景音频播放失败', err));
+        });
+    }
+
+    backgroundAudioElement.volume = audioSettings.musicVolume;
+    await backgroundAudioElement.play().catch(err => console.warn('背景音乐播放失败', err));
 }
 
 function stopBackgroundMusic() {
-    if (audioNodes.musicSource) {
+    if (backgroundAudioElement) {
         try {
-            audioNodes.musicSource.stop();
+            backgroundAudioElement.pause();
+            backgroundAudioElement.currentTime = 0;
         } catch (e) {
             console.warn('停止背景音乐失败', e);
         }
-        audioNodes.musicSource.disconnect();
-        audioNodes.musicSource = null;
     }
 }
 
@@ -381,10 +375,6 @@ async function startPractice() {
     if (audioContext.state === 'suspended') {
         await audioContext.resume();
     }
-    if (audioSettings.enableMusic) {
-        startBackgroundMusic();
-    }
-
     await startBackgroundMusic();
 
     // 重置状态
@@ -689,75 +679,15 @@ function playCompletionSound() {
     }
 }
 
-// 背景音乐加载
-async function loadBackgroundMusic() {
-    if (!audioContext) return;
-    if (backgroundBuffer) return backgroundBuffer;
-
-    const response = await fetch(EMBEDDED_BACKGROUND_WAV);
-    const arrayBuffer = await response.arrayBuffer();
-    backgroundBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    return backgroundBuffer;
-}
-
-// 开始播放背景音乐
-async function startBackgroundMusic() {
-    if (!state.enableBackgroundMusic) return;
-    if (!audioContext) return;
-
-    if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-    }
-
-    if (!backgroundGainNode) {
-        backgroundGainNode = audioContext.createGain();
-        backgroundGainNode.gain.value = state.backgroundVolume;
-        backgroundGainNode.connect(audioContext.destination);
-    }
-
-    await loadBackgroundMusic();
-
-    stopBackgroundMusic();
-    backgroundSource = audioContext.createBufferSource();
-    backgroundSource.buffer = backgroundBuffer;
-    backgroundSource.loop = true;
-    backgroundSource.connect(backgroundGainNode);
-    backgroundSource.start(0);
-}
-
-// 停止背景音乐
-function stopBackgroundMusic() {
-    if (backgroundSource) {
-        try {
-            backgroundSource.stop();
-        } catch (e) {}
-        backgroundSource.disconnect();
-        backgroundSource = null;
-    }
-}
-
-// 更新背景音乐音量
-function updateBackgroundVolume() {
-    if (backgroundGainNode && audioContext) {
-        const now = audioContext.currentTime;
-        backgroundGainNode.gain.cancelScheduledValues(now);
-        backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume, now, 0.05);
-    }
-}
-
 // 语音播报时的背景音乐 ducking
 function applyBackgroundDucking() {
-    if (!backgroundGainNode || !audioContext) return;
-    const now = audioContext.currentTime;
-    backgroundGainNode.gain.cancelScheduledValues(now);
-    backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume * 0.4, now, 0.05);
+    if (!backgroundAudioElement || !audioSettings.enableMusic) return;
+    backgroundAudioElement.volume = audioSettings.musicVolume * 0.4;
 }
 
 function restoreBackgroundVolume() {
-    if (!backgroundGainNode || !audioContext) return;
-    const now = audioContext.currentTime;
-    backgroundGainNode.gain.cancelScheduledValues(now);
-    backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume, now, 0.1);
+    if (!backgroundAudioElement || !audioSettings.enableMusic) return;
+    backgroundAudioElement.volume = audioSettings.musicVolume;
 }
 
 // 语音合成
@@ -778,7 +708,7 @@ function speak(text) {
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
-    if (audioContext && backgroundGainNode && state.enableBackgroundMusic) {
+    if (audioContext && audioNodes.musicGain && audioSettings.enableMusic) {
         applyBackgroundDucking();
         utterance.addEventListener('end', restoreBackgroundVolume);
         utterance.addEventListener('error', restoreBackgroundVolume);
