@@ -239,9 +239,9 @@ h1 {
     width: min(82vw, 360px);
     aspect-ratio: 1;
     margin: 40px auto;
-    display: grid;
-    place-items: center;
-    overflow: visible;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .breath-circle-container::after {
@@ -249,47 +249,43 @@ h1 {
     position: absolute;
     inset: 10px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
-    filter: blur(2px);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+    filter: blur(4px);
     z-index: 0;
 }
 
 .breath-circle {
-    width: 68%;
-    height: 68%;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    width: 78%;
+    max-width: 320px;
+    aspect-ratio: 1;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.18));
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 1;
-    transition: all 1s ease-in-out;
-    box-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 38px rgba(255, 255, 255, 0.35);
+    transition: transform 1s ease-in-out, box-shadow 1s ease-in-out, background 1s ease-in-out;
+    overflow: hidden;
+    clip-path: circle(50%);
 }
 
 .breath-circle.inhale {
-    width: 96%;
-    height: 96%;
-    background: rgba(100, 200, 255, 0.3);
-    box-shadow: 0 0 60px rgba(100, 200, 255, 0.5);
+    transform: scale(1.08);
+    background: radial-gradient(circle at 30% 30%, rgba(140, 210, 255, 0.42), rgba(100, 200, 255, 0.28));
+    box-shadow: 0 0 70px rgba(100, 200, 255, 0.55);
 }
 
 .breath-circle.hold {
-    width: 96%;
-    height: 96%;
-    background: rgba(200, 100, 255, 0.3);
-    box-shadow: 0 0 60px rgba(200, 100, 255, 0.5);
+    transform: scale(1.08);
+    background: radial-gradient(circle at 30% 30%, rgba(220, 130, 255, 0.42), rgba(200, 100, 255, 0.28));
+    box-shadow: 0 0 70px rgba(200, 100, 255, 0.55);
 }
 
 .breath-circle.exhale {
-    width: 68%;
-    height: 68%;
-    background: rgba(100, 255, 150, 0.3);
+    transform: scale(0.95);
+    background: radial-gradient(circle at 30% 30%, rgba(120, 255, 180, 0.42), rgba(100, 255, 150, 0.28));
     box-shadow: 0 0 60px rgba(100, 255, 150, 0.5);
 }
 
