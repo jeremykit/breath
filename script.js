@@ -61,8 +61,7 @@ let audioNodes = {
 const PRE_RECORDED_SRC = 'data:audio/wav;base64,UklGRpgiAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YXQiAAAAAMAEZgnXDfkRtBX1GKcb0RmxGs4dqyDsOvc9njs+QE6hQVQk4ZR1FvfS8FnUTggS3dF9sXfYdxyOKmwo1Kc6dKn4Xn5s7U7Jr3W7iF0HB3gH4pHc4SpQVvBH7oRJCHJp4htKlfGcjyXzI5h0pXe4dQIRV7h1It01njGZKoVdRCos5t1JZcTD+ZRFKc4Q5CEQH';
 let wakeLock = null; // 屏幕唤醒锁
 let backgroundBuffer = null;
-let backgroundSource = null;
-let backgroundGainNode = null;
+const BACKGROUND_MUSIC_URL = 'https://mp3.ours24.dpdns.org/praise/%E9%BB%98%E6%83%B3/Small%20Bartizan_Piano%20Cover.m4a';
 
 // 初始化
 function init() {
@@ -110,15 +109,6 @@ function init() {
     // 声音设置
     bindAudioSettingsControls();
     syncAudioControls();
-
-    document.getElementById('backgroundMusicToggle').addEventListener('change', (e) => {
-        state.enableBackgroundMusic = e.target.checked;
-        if (state.enableBackgroundMusic) {
-            startBackgroundMusic();
-        } else {
-            stopBackgroundMusic();
-        }
-    });
 
     // 开始按钮
     document.getElementById('startBtn').addEventListener('click', startPractice);
@@ -281,22 +271,49 @@ function applyAudioSettings() {
     );
 }
 
-function startBackgroundMusic() {
+async function loadBackgroundMusicBuffer() {
+    if (backgroundBuffer) return backgroundBuffer;
+    ensureAudioContext();
+    if (!audioContext) return null;
+
+    try {
+        const response = await fetch(BACKGROUND_MUSIC_URL);
+        const arrayBuffer = await response.arrayBuffer();
+        backgroundBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    } catch (e) {
+        console.warn('加载远程背景音乐失败，使用内置音频', e);
+        try {
+            const response = await fetch(EMBEDDED_BACKGROUND_WAV);
+            const arrayBuffer = await response.arrayBuffer();
+            backgroundBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        } catch (fallbackError) {
+            console.error('内置背景音频加载也失败', fallbackError);
+            backgroundBuffer = null;
+        }
+    }
+
+    return backgroundBuffer;
+}
+
+async function startBackgroundMusic() {
     if (!audioSettings.enableMusic) return;
     ensureAudioContext();
 
     if (audioContext.state === 'suspended') {
-        audioContext.resume();
+        await audioContext.resume();
     }
+
+    const buffer = await loadBackgroundMusicBuffer();
+    if (!buffer || !audioNodes.musicGain) return;
 
     stopBackgroundMusic();
 
-    const oscillator = audioContext.createOscillator();
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
-    oscillator.connect(audioNodes.musicGain);
-    oscillator.start();
-    audioNodes.musicSource = oscillator;
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(audioNodes.musicGain);
+    source.start();
+    audioNodes.musicSource = source;
 }
 
 function stopBackgroundMusic() {
@@ -381,10 +398,6 @@ async function startPractice() {
     if (audioContext.state === 'suspended') {
         await audioContext.resume();
     }
-    if (audioSettings.enableMusic) {
-        startBackgroundMusic();
-    }
-
     await startBackgroundMusic();
 
     // 重置状态
@@ -689,75 +702,19 @@ function playCompletionSound() {
     }
 }
 
-// 背景音乐加载
-async function loadBackgroundMusic() {
-    if (!audioContext) return;
-    if (backgroundBuffer) return backgroundBuffer;
-
-    const response = await fetch(EMBEDDED_BACKGROUND_WAV);
-    const arrayBuffer = await response.arrayBuffer();
-    backgroundBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    return backgroundBuffer;
-}
-
-// 开始播放背景音乐
-async function startBackgroundMusic() {
-    if (!state.enableBackgroundMusic) return;
-    if (!audioContext) return;
-
-    if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-    }
-
-    if (!backgroundGainNode) {
-        backgroundGainNode = audioContext.createGain();
-        backgroundGainNode.gain.value = state.backgroundVolume;
-        backgroundGainNode.connect(audioContext.destination);
-    }
-
-    await loadBackgroundMusic();
-
-    stopBackgroundMusic();
-    backgroundSource = audioContext.createBufferSource();
-    backgroundSource.buffer = backgroundBuffer;
-    backgroundSource.loop = true;
-    backgroundSource.connect(backgroundGainNode);
-    backgroundSource.start(0);
-}
-
-// 停止背景音乐
-function stopBackgroundMusic() {
-    if (backgroundSource) {
-        try {
-            backgroundSource.stop();
-        } catch (e) {}
-        backgroundSource.disconnect();
-        backgroundSource = null;
-    }
-}
-
-// 更新背景音乐音量
-function updateBackgroundVolume() {
-    if (backgroundGainNode && audioContext) {
-        const now = audioContext.currentTime;
-        backgroundGainNode.gain.cancelScheduledValues(now);
-        backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume, now, 0.05);
-    }
-}
-
 // 语音播报时的背景音乐 ducking
 function applyBackgroundDucking() {
-    if (!backgroundGainNode || !audioContext) return;
+    if (!audioNodes.musicGain || !audioContext || !audioSettings.enableMusic) return;
     const now = audioContext.currentTime;
-    backgroundGainNode.gain.cancelScheduledValues(now);
-    backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume * 0.4, now, 0.05);
+    audioNodes.musicGain.gain.cancelScheduledValues(now);
+    audioNodes.musicGain.gain.setTargetAtTime(audioSettings.musicVolume * 0.4, now, 0.05);
 }
 
 function restoreBackgroundVolume() {
-    if (!backgroundGainNode || !audioContext) return;
+    if (!audioNodes.musicGain || !audioContext || !audioSettings.enableMusic) return;
     const now = audioContext.currentTime;
-    backgroundGainNode.gain.cancelScheduledValues(now);
-    backgroundGainNode.gain.setTargetAtTime(state.backgroundVolume, now, 0.1);
+    audioNodes.musicGain.gain.cancelScheduledValues(now);
+    audioNodes.musicGain.gain.setTargetAtTime(audioSettings.musicVolume, now, 0.1);
 }
 
 // 语音合成
@@ -778,7 +735,7 @@ function speak(text) {
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
-    if (audioContext && backgroundGainNode && state.enableBackgroundMusic) {
+    if (audioContext && audioNodes.musicGain && audioSettings.enableMusic) {
         applyBackgroundDucking();
         utterance.addEventListener('end', restoreBackgroundVolume);
         utterance.addEventListener('error', restoreBackgroundVolume);
