@@ -29,18 +29,38 @@ let state = {
     currentCycle: 1,
     currentPhase: 'prepare', // prepare, inhale, hold, exhale
     phaseTimeLeft: 3,
-    isPaused: false,
-    enableTick: true,
-    enableVoice: true,
-    volume: 0.8
+    isPaused: false
 };
 
 let timer = null;
 let audioContext = null;
+const STORAGE_KEY = 'breathAudioSettings';
+const defaultAudioSettings = {
+    enableTick: true,
+    enableVoice: true,
+    enableMusic: false,
+    usePreRecordedVoice: false,
+    tickVolume: 0.8,
+    completionVolume: 0.8,
+    voiceVolume: 0.8,
+    musicVolume: 0.4
+};
+let audioSettings = { ...defaultAudioSettings };
+let audioNodes = {
+    masterGain: null,
+    tickGain: null,
+    completionGain: null,
+    musicGain: null,
+    voiceGain: null,
+    musicSource: null
+};
+const PRE_RECORDED_SRC = 'data:audio/wav;base64,UklGRpgiAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YXQiAAAAAMAEZgnXDfkRtBX1GKcb0RmxGs4dqyDsOvc9njs+QE6hQVQk4ZR1FvfS8FnUTggS3dF9sXfYdxyOKmwo1Kc6dKn4Xn5s7U7Jr3W7iF0HB3gH4pHc4SpQVvBH7oRJCHJp4htKlfGcjyXzI5h0pXe4dQIRV7h1It01njGZKoVdRCos5t1JZcTD+ZRFKc4Q5CEQH';
 let wakeLock = null; // 屏幕唤醒锁
 
 // 初始化
 function init() {
+    loadAudioSettings();
+
     // 协议选择
     document.querySelectorAll('.protocol-option').forEach(option => {
         option.addEventListener('click', function() {
@@ -80,21 +100,9 @@ function init() {
         }
     });
 
-    // 音量控制
-    const volumeSlider = document.getElementById('volumeSlider');
-    volumeSlider.addEventListener('input', (e) => {
-        state.volume = e.target.value / 100;
-        document.getElementById('volumeValue').textContent = e.target.value + '%';
-    });
-
     // 声音设置
-    document.getElementById('tickSound').addEventListener('change', (e) => {
-        state.enableTick = e.target.checked;
-    });
-
-    document.getElementById('voiceGuide').addEventListener('change', (e) => {
-        state.enableVoice = e.target.checked;
-    });
+    bindAudioSettingsControls();
+    syncAudioControls();
 
     // 开始按钮
     document.getElementById('startBtn').addEventListener('click', startPractice);
@@ -112,6 +120,194 @@ function updateRoundsVisibility() {
     // 两种模式都显示轮数控制
     roundsControl.style.display = 'block';
     updateRoundsDisplay();
+}
+
+function loadAudioSettings() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            audioSettings = { ...defaultAudioSettings, ...parsed };
+        }
+    } catch (e) {
+        console.warn('读取音频设置失败，使用默认值', e);
+        audioSettings = { ...defaultAudioSettings };
+    }
+
+    if (!('speechSynthesis' in window)) {
+        audioSettings.usePreRecordedVoice = true;
+    }
+}
+
+function saveAudioSettings() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(audioSettings));
+}
+
+function bindAudioSettingsControls() {
+    const tickSound = document.getElementById('tickSound');
+    const voiceGuide = document.getElementById('voiceGuide');
+    const musicToggle = document.getElementById('musicToggle');
+    const tickVolumeSlider = document.getElementById('tickVolumeSlider');
+    const completionVolumeSlider = document.getElementById('completionVolumeSlider');
+    const voiceVolumeSlider = document.getElementById('voiceVolumeSlider');
+    const musicVolumeSlider = document.getElementById('musicVolumeSlider');
+
+    tickSound.addEventListener('change', (e) => {
+        audioSettings.enableTick = e.target.checked;
+        saveAudioSettings();
+        applyAudioSettings();
+    });
+
+    voiceGuide.addEventListener('change', (e) => {
+        audioSettings.enableVoice = e.target.checked;
+        saveAudioSettings();
+        applyAudioSettings();
+    });
+
+    musicToggle.addEventListener('change', (e) => {
+        audioSettings.enableMusic = e.target.checked;
+        saveAudioSettings();
+        applyAudioSettings();
+        if (audioSettings.enableMusic) {
+            startBackgroundMusic();
+        } else {
+            stopBackgroundMusic();
+        }
+    });
+
+    tickVolumeSlider.addEventListener('input', (e) => {
+        audioSettings.tickVolume = e.target.value / 100;
+        document.getElementById('tickVolumeValue').textContent = e.target.value + '%';
+        saveAudioSettings();
+        applyAudioSettings();
+    });
+
+    completionVolumeSlider.addEventListener('input', (e) => {
+        audioSettings.completionVolume = e.target.value / 100;
+        document.getElementById('completionVolumeValue').textContent = e.target.value + '%';
+        saveAudioSettings();
+        applyAudioSettings();
+    });
+
+    voiceVolumeSlider.addEventListener('input', (e) => {
+        audioSettings.voiceVolume = e.target.value / 100;
+        document.getElementById('voiceVolumeValue').textContent = e.target.value + '%';
+        saveAudioSettings();
+        applyAudioSettings();
+    });
+
+    musicVolumeSlider.addEventListener('input', (e) => {
+        audioSettings.musicVolume = e.target.value / 100;
+        document.getElementById('musicVolumeValue').textContent = e.target.value + '%';
+        saveAudioSettings();
+        applyAudioSettings();
+    });
+}
+
+function syncAudioControls() {
+    document.getElementById('tickSound').checked = audioSettings.enableTick;
+    document.getElementById('voiceGuide').checked = audioSettings.enableVoice;
+    document.getElementById('musicToggle').checked = audioSettings.enableMusic;
+
+    setSliderValue('tickVolumeSlider', 'tickVolumeValue', audioSettings.tickVolume);
+    setSliderValue('completionVolumeSlider', 'completionVolumeValue', audioSettings.completionVolume);
+    setSliderValue('voiceVolumeSlider', 'voiceVolumeValue', audioSettings.voiceVolume);
+    setSliderValue('musicVolumeSlider', 'musicVolumeValue', audioSettings.musicVolume);
+}
+
+function setSliderValue(sliderId, valueId, value) {
+    const percent = Math.round(value * 100);
+    document.getElementById(sliderId).value = percent;
+    document.getElementById(valueId).textContent = percent + '%';
+}
+
+function ensureAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (!audioNodes.masterGain) {
+        audioNodes.masterGain = audioContext.createGain();
+        audioNodes.tickGain = audioContext.createGain();
+        audioNodes.completionGain = audioContext.createGain();
+        audioNodes.musicGain = audioContext.createGain();
+        audioNodes.voiceGain = audioContext.createGain();
+
+        audioNodes.tickGain.connect(audioNodes.masterGain);
+        audioNodes.completionGain.connect(audioNodes.masterGain);
+        audioNodes.musicGain.connect(audioNodes.masterGain);
+        audioNodes.voiceGain.connect(audioNodes.masterGain);
+        audioNodes.masterGain.connect(audioContext.destination);
+    }
+
+    applyAudioSettings();
+}
+
+function applyAudioSettings() {
+    if (!audioContext || !audioNodes.masterGain) return;
+    const now = audioContext.currentTime;
+
+    audioNodes.tickGain.gain.setValueAtTime(
+        audioSettings.enableTick ? audioSettings.tickVolume : 0,
+        now
+    );
+    audioNodes.completionGain.gain.setValueAtTime(
+        audioSettings.enableTick ? audioSettings.completionVolume : 0,
+        now
+    );
+    audioNodes.voiceGain.gain.setValueAtTime(
+        audioSettings.enableVoice ? audioSettings.voiceVolume : 0,
+        now
+    );
+    audioNodes.musicGain.gain.setValueAtTime(
+        audioSettings.enableMusic ? audioSettings.musicVolume : 0,
+        now
+    );
+}
+
+function startBackgroundMusic() {
+    if (!audioSettings.enableMusic) return;
+    ensureAudioContext();
+
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+
+    stopBackgroundMusic();
+
+    const oscillator = audioContext.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
+    oscillator.connect(audioNodes.musicGain);
+    oscillator.start();
+    audioNodes.musicSource = oscillator;
+}
+
+function stopBackgroundMusic() {
+    if (audioNodes.musicSource) {
+        try {
+            audioNodes.musicSource.stop();
+        } catch (e) {
+            console.warn('停止背景音乐失败', e);
+        }
+        audioNodes.musicSource.disconnect();
+        audioNodes.musicSource = null;
+    }
+}
+
+function playPreRecordedVoice() {
+    ensureAudioContext();
+    if (!audioContext || !audioNodes.voiceGain) return;
+
+    const clip = new Audio(PRE_RECORDED_SRC);
+    clip.loop = false;
+    clip.volume = 1;
+    const source = audioContext.createMediaElementSource(clip);
+    source.connect(audioNodes.voiceGain);
+    clip.addEventListener('ended', () => {
+        source.disconnect();
+    });
+    clip.play().catch((e) => console.warn('预录语音播放失败', e));
 }
 
 function updateRoundsDisplay() {
@@ -164,13 +360,13 @@ function startPractice() {
     requestWakeLock();
 
     // 初始化音频（移动端需要用户交互才能启用音频）
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    // 恢复音频上下文（处理移动端自动播放限制）
+    ensureAudioContext();
+    applyAudioSettings();
     if (audioContext.state === 'suspended') {
         audioContext.resume();
+    }
+    if (audioSettings.enableMusic) {
+        startBackgroundMusic();
     }
 
     // 重置状态
@@ -189,7 +385,7 @@ function startPractice() {
 
     // 播报协议名称和第一个步骤名称，播报完成后再开始计时
     const protocol = protocols[state.selectedProtocol];
-    if (state.enableVoice) {
+    if (audioSettings.enableVoice) {
         if (protocol.type === 'sequence') {
             // 先播报协议名称
             speak(protocol.name);
@@ -225,7 +421,7 @@ function startTimer() {
 
         if (state.phaseTimeLeft > 0) {
             // 播放节奏音
-            if (state.enableTick && state.currentPhase !== 'prepare') {
+            if (audioSettings.enableTick && state.currentPhase !== 'prepare') {
                 playTick();
             }
             updateUI();
@@ -244,17 +440,17 @@ function nextPhase() {
         state.currentPhase = 'inhale';
         const pattern = getCurrentPattern();
         state.phaseTimeLeft = pattern[0];
-        if (state.enableVoice) speak('吸气');
+        if (audioSettings.enableVoice) speak('吸气');
     } else if (state.currentPhase === 'inhale') {
         state.currentPhase = 'hold';
         const pattern = getCurrentPattern();
         state.phaseTimeLeft = pattern[1];
-        if (state.enableVoice) speak('憋气');
+        if (audioSettings.enableVoice) speak('憋气');
     } else if (state.currentPhase === 'hold') {
         state.currentPhase = 'exhale';
         const pattern = getCurrentPattern();
         state.phaseTimeLeft = pattern[2];
-        if (state.enableVoice) speak('呼气');
+        if (audioSettings.enableVoice) speak('呼气');
     } else if (state.currentPhase === 'exhale') {
         // 一个循环完成
         nextCycle();
@@ -277,7 +473,7 @@ function nextCycle() {
         state.currentPhase = 'inhale';
         const pattern = getCurrentPattern();
         state.phaseTimeLeft = pattern[0];
-        if (state.enableVoice) speak('吸气');
+        if (audioSettings.enableVoice) speak('吸气');
         updateUI();
     } else {
         const currentStepData = protocol.steps[state.currentStep];
@@ -298,14 +494,14 @@ function nextCycle() {
                     return;
                 }
 
-                if (state.enableVoice) speak('第' + state.currentRound + '轮');
+                if (audioSettings.enableVoice) speak('第' + state.currentRound + '轮');
             }
 
             // 开始新步骤，暂停计时器，播报名称后再恢复
             if (timer) clearInterval(timer);
 
             const nextStep = protocol.steps[state.currentStep];
-            if (state.enableVoice) {
+            if (audioSettings.enableVoice) {
                 speak(nextStep.name);
                 // 延迟开始吸气，给步骤名称播报留出时间（3.5秒足够播完）
                 setTimeout(() => {
@@ -329,7 +525,7 @@ function nextCycle() {
             state.currentPhase = 'inhale';
             const pattern = getCurrentPattern();
             state.phaseTimeLeft = pattern[0];
-            if (state.enableVoice) speak('吸气');
+            if (audioSettings.enableVoice) speak('吸气');
             updateUI();
         }
     }
@@ -394,6 +590,7 @@ function togglePause() {
 function stopPractice() {
     if (timer) clearInterval(timer);
     releaseWakeLock(); // 释放屏幕唤醒锁
+    stopBackgroundMusic();
     document.getElementById('practiceScreen').classList.add('hidden');
     document.getElementById('setupScreen').classList.remove('hidden');
 }
@@ -402,9 +599,10 @@ function stopPractice() {
 function completePractice() {
     if (timer) clearInterval(timer);
     releaseWakeLock(); // 释放屏幕唤醒锁
+    stopBackgroundMusic();
     document.getElementById('practiceScreen').classList.add('hidden');
     document.getElementById('completionScreen').classList.remove('hidden');
-    if (state.enableVoice) speak('练习完成');
+    if (audioSettings.enableVoice) speak('练习完成');
     playCompletionSound();
 }
 
@@ -428,12 +626,12 @@ function playTick() {
         const gainNode = audioContext.createGain();
 
         oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        gainNode.connect(audioNodes.tickGain);
 
         oscillator.frequency.value = 800;
         oscillator.type = 'sine';
 
-        gainNode.gain.setValueAtTime(state.volume * 0.3, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(audioSettings.tickVolume * 0.8, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
 
         oscillator.start(audioContext.currentTime);
@@ -446,6 +644,7 @@ function playTick() {
 // 播放完成音
 function playCompletionSound() {
     if (!audioContext) return;
+    if (!audioSettings.enableTick) return;
 
     try {
         // 确保音频上下文处于运行状态
@@ -457,12 +656,12 @@ function playCompletionSound() {
         const gainNode = audioContext.createGain();
 
         oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        gainNode.connect(audioNodes.completionGain);
 
         oscillator.frequency.value = 523.25; // C5
         oscillator.type = 'sine';
 
-        gainNode.gain.setValueAtTime(state.volume * 0.5, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(audioSettings.completionVolume, audioContext.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
 
         oscillator.start(audioContext.currentTime);
@@ -474,11 +673,10 @@ function playCompletionSound() {
 
 // 语音合成
 function speak(text) {
-    if (!state.enableVoice) return;
+    if (!audioSettings.enableVoice) return;
 
-    // 检查浏览器支持
-    if (!('speechSynthesis' in window)) {
-        console.log('浏览器不支持语音合成');
+    if (!('speechSynthesis' in window) || audioSettings.usePreRecordedVoice) {
+        playPreRecordedVoice();
         return;
     }
 
@@ -487,7 +685,7 @@ function speak(text) {
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
-    utterance.volume = state.volume;
+    utterance.volume = audioSettings.voiceVolume;
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
