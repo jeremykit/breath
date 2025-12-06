@@ -249,47 +249,50 @@ h1 {
 .breath-circle-container::after {
     content: "";
     position: absolute;
-    inset: 8px;
+    inset: 12px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
     filter: blur(3px);
     z-index: 0;
 }
 
 .breath-circle {
-    width: 70%;
-    aspect-ratio: 1;
+    --scale: 1;
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(0.88);
+    width: 70%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%) scale(var(--scale));
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.14));
+    clip-path: circle(50% at 50% 50%);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.16));
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 1;
-    transition: transform 1s ease-in-out, background 0.8s ease, box-shadow 0.8s ease;
-    box-shadow: 0 0 35px rgba(255, 255, 255, 0.22);
+    transition: transform 1s ease-in-out, background 1s ease-in-out, box-shadow 1s ease-in-out;
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(2px);
 }
 
 .breath-circle.inhale {
-    transform: translate(-50%, -50%) scale(1.08);
-    background: radial-gradient(circle at 30% 30%, rgba(120, 210, 255, 0.38), rgba(120, 210, 255, 0.2));
-    box-shadow: 0 0 70px rgba(120, 210, 255, 0.55);
+    --scale: 1.15;
+    background: radial-gradient(circle at 30% 30%, rgba(100, 200, 255, 0.36), rgba(100, 200, 255, 0.2));
+    box-shadow: 0 0 70px rgba(100, 200, 255, 0.45);
 }
 
 .breath-circle.hold {
-    transform: translate(-50%, -50%) scale(1.08);
-    background: radial-gradient(circle at 30% 30%, rgba(210, 140, 255, 0.35), rgba(210, 140, 255, 0.2));
-    box-shadow: 0 0 70px rgba(210, 140, 255, 0.5);
+    --scale: 1.12;
+    background: radial-gradient(circle at 30% 30%, rgba(200, 100, 255, 0.36), rgba(200, 100, 255, 0.2));
+    box-shadow: 0 0 70px rgba(200, 100, 255, 0.45);
 }
 
 .breath-circle.exhale {
-    transform: translate(-50%, -50%) scale(0.9);
-    background: radial-gradient(circle at 30% 30%, rgba(120, 255, 170, 0.32), rgba(120, 255, 170, 0.16));
-    box-shadow: 0 0 60px rgba(120, 255, 170, 0.45);
+    --scale: 0.95;
+    background: radial-gradient(circle at 30% 30%, rgba(100, 255, 150, 0.32), rgba(100, 255, 150, 0.18));
+    box-shadow: 0 0 60px rgba(100, 255, 150, 0.4);
 }
 
 .phase-text {
