@@ -236,48 +236,62 @@ h1 {
 
 .breath-circle-container {
     position: relative;
-    width: 280px;
-    height: 280px;
+    width: min(82vw, 360px);
+    aspect-ratio: 1;
     margin: 40px auto;
-    overflow: hidden;
+    display: grid;
+    place-items: center;
+    overflow: visible;
+    padding: 8px;
+}
+
+.breath-circle-container::after {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+    filter: blur(3px);
+    z-index: 0;
 }
 
 .breath-circle {
-    width: 200px;
-    height: 200px;
+    --scale: 1;
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    width: 70%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%) scale(var(--scale));
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    clip-path: circle(50% at 50% 50%);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.16));
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    transition: all 1s ease-in-out;
-    box-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+    z-index: 1;
+    transition: transform 1s ease-in-out, background 1s ease-in-out, box-shadow 1s ease-in-out;
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(2px);
 }
 
 .breath-circle.inhale {
-    width: 280px;
-    height: 280px;
-    background: rgba(100, 200, 255, 0.3);
-    box-shadow: 0 0 60px rgba(100, 200, 255, 0.5);
+    --scale: 1.15;
+    background: radial-gradient(circle at 30% 30%, rgba(100, 200, 255, 0.36), rgba(100, 200, 255, 0.2));
+    box-shadow: 0 0 70px rgba(100, 200, 255, 0.45);
 }
 
 .breath-circle.hold {
-    width: 280px;
-    height: 280px;
-    background: rgba(200, 100, 255, 0.3);
-    box-shadow: 0 0 60px rgba(200, 100, 255, 0.5);
+    --scale: 1.12;
+    background: radial-gradient(circle at 30% 30%, rgba(200, 100, 255, 0.36), rgba(200, 100, 255, 0.2));
+    box-shadow: 0 0 70px rgba(200, 100, 255, 0.45);
 }
 
 .breath-circle.exhale {
-    width: 200px;
-    height: 200px;
-    background: rgba(100, 255, 150, 0.3);
-    box-shadow: 0 0 60px rgba(100, 255, 150, 0.5);
+    --scale: 0.95;
+    background: radial-gradient(circle at 30% 30%, rgba(100, 255, 150, 0.32), rgba(100, 255, 150, 0.18));
+    box-shadow: 0 0 60px rgba(100, 255, 150, 0.4);
 }
 
 .phase-text {
@@ -376,20 +390,8 @@ h1 {
     }
 
     .breath-circle-container {
-        width: 220px;
-        height: 220px;
+        width: min(90vw, 280px);
         margin: 28px auto;
-    }
-
-    .breath-circle {
-        width: 160px;
-        height: 160px;
-    }
-
-    .breath-circle.inhale,
-    .breath-circle.hold {
-        width: 220px;
-        height: 220px;
     }
 
     .phase-text {
