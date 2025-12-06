@@ -234,50 +234,62 @@ h1 {
     opacity: 0.9;
 }
 
+
 .breath-circle-container {
     position: relative;
-    width: 280px;
-    height: 280px;
+    width: min(82vw, 360px);
+    aspect-ratio: 1;
     margin: 40px auto;
-    overflow: hidden;
+    display: grid;
+    place-items: center;
+    overflow: visible;
+    padding: 8px;
+}
+
+.breath-circle-container::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+    filter: blur(3px);
+    z-index: 0;
 }
 
 .breath-circle {
-    width: 200px;
-    height: 200px;
+    width: 70%;
+    aspect-ratio: 1;
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(0.88);
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.14));
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    transition: all 1s ease-in-out;
-    box-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+    z-index: 1;
+    transition: transform 1s ease-in-out, background 0.8s ease, box-shadow 0.8s ease;
+    box-shadow: 0 0 35px rgba(255, 255, 255, 0.22);
 }
 
 .breath-circle.inhale {
-    width: 280px;
-    height: 280px;
-    background: rgba(100, 200, 255, 0.3);
-    box-shadow: 0 0 60px rgba(100, 200, 255, 0.5);
+    transform: translate(-50%, -50%) scale(1.08);
+    background: radial-gradient(circle at 30% 30%, rgba(120, 210, 255, 0.38), rgba(120, 210, 255, 0.2));
+    box-shadow: 0 0 70px rgba(120, 210, 255, 0.55);
 }
 
 .breath-circle.hold {
-    width: 280px;
-    height: 280px;
-    background: rgba(200, 100, 255, 0.3);
-    box-shadow: 0 0 60px rgba(200, 100, 255, 0.5);
+    transform: translate(-50%, -50%) scale(1.08);
+    background: radial-gradient(circle at 30% 30%, rgba(210, 140, 255, 0.35), rgba(210, 140, 255, 0.2));
+    box-shadow: 0 0 70px rgba(210, 140, 255, 0.5);
 }
 
 .breath-circle.exhale {
-    width: 200px;
-    height: 200px;
-    background: rgba(100, 255, 150, 0.3);
-    box-shadow: 0 0 60px rgba(100, 255, 150, 0.5);
+    transform: translate(-50%, -50%) scale(0.9);
+    background: radial-gradient(circle at 30% 30%, rgba(120, 255, 170, 0.32), rgba(120, 255, 170, 0.16));
+    box-shadow: 0 0 60px rgba(120, 255, 170, 0.45);
 }
 
 .phase-text {
@@ -376,20 +388,8 @@ h1 {
     }
 
     .breath-circle-container {
-        width: 220px;
-        height: 220px;
+        width: min(90vw, 280px);
         margin: 28px auto;
-    }
-
-    .breath-circle {
-        width: 160px;
-        height: 160px;
-    }
-
-    .breath-circle.inhale,
-    .breath-circle.hold {
-        width: 220px;
-        height: 220px;
     }
 
     .phase-text {
