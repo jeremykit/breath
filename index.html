@@ -8,9 +8,13 @@
 </head>
 <body>
     <div class="container">
+        <header class="app-header">
+            <div class="app-title">🧘 呼吸默想引导</div>
+            <div class="app-subtitle">随时随地的呼吸陪伴</div>
+        </header>
+
         <!-- 设置界面 -->
         <div class="setup-screen" id="setupScreen">
-            <h1>🧘 呼吸默想引导</h1>
             
             <div class="protocol-select">
                 <div class="protocol-option active" data-protocol="sleep">
@@ -44,14 +48,29 @@
                         <span>语音引导</span>
                     </label>
                     <label class="checkbox-label">
-                        <input type="checkbox" id="backgroundMusicToggle" checked>
+                        <input type="checkbox" id="musicToggle">
                         <span>背景音乐</span>
                     </label>
                 </div>
                 <div class="volume-control">
-                    <span>音量</span>
-                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
-                    <span id="volumeValue">80%</span>
+                    <span>提示音音量</span>
+                    <input type="range" class="volume-slider" id="tickVolumeSlider" min="0" max="100" value="80">
+                    <span id="tickVolumeValue">80%</span>
+                </div>
+                <div class="volume-control">
+                    <span>完成音音量</span>
+                    <input type="range" class="volume-slider" id="completionVolumeSlider" min="0" max="100" value="80">
+                    <span id="completionVolumeValue">80%</span>
+                </div>
+                <div class="volume-control">
+                    <span>语音音量</span>
+                    <input type="range" class="volume-slider" id="voiceVolumeSlider" min="0" max="100" value="80">
+                    <span id="voiceVolumeValue">80%</span>
+                </div>
+                <div class="volume-control">
+                    <span>背景音乐音量</span>
+                    <input type="range" class="volume-slider" id="musicVolumeSlider" min="0" max="100" value="40">
+                    <span id="musicVolumeValue">40%</span>
                 </div>
                 <div class="volume-control">
                     <span>背景音量</span>
